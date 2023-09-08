@@ -7,6 +7,9 @@ require "dependabot/utils"
 module Dependabot
   module FileParsers
     class Base
+      # The `DependencySet` represents a set of dependencies that have been parsed from
+      # a dependency file. It is used to deduplicate dependencies that have been
+      # specified in multiple places (e.g., multiple gemspecs).
       class DependencySet
         def initialize(dependencies = [], case_sensitive: false)
           unless dependencies.is_a?(Array) &&
