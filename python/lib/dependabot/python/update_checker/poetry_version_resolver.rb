@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "excon"
@@ -9,11 +10,11 @@ require "dependabot/errors"
 require "dependabot/shared_helpers"
 require "dependabot/python/file_parser"
 require "dependabot/python/file_parser/python_requirement_parser"
-require "dependabot/python/file_parser/subdependency_type_parser"
 require "dependabot/python/file_updater/pyproject_preparer"
 require "dependabot/python/update_checker"
 require "dependabot/python/version"
 require "dependabot/python/requirement"
+require "dependabot/python/helpers"
 require "dependabot/python/native_helpers"
 require "dependabot/python/authed_url_builder"
 require "dependabot/python/name_normaliser"
@@ -100,9 +101,9 @@ module Dependabot
 
         def fetch_version_from_parsed_lockfile(updated_lockfile)
           version =
-            updated_lockfile.fetch("package", []).
-            find { |d| d["name"] && normalise(d["name"]) == dependency.name }&.
-            fetch("version")
+            updated_lockfile.fetch("package", [])
+                            .find { |d| d["name"] && normalise(d["name"]) == dependency.name }
+            &.fetch("version")
 
           return version unless version.nil? && dependency.top_level?
 
@@ -116,15 +117,15 @@ module Dependabot
             name = if (url = match.named_captures.fetch("url"))
                      File.basename(URI.parse(url).path)
                    else
-                     message.match(GIT_REFERENCE_NOT_FOUND_REGEX).
-                       named_captures.fetch("name")
+                     message.match(GIT_REFERENCE_NOT_FOUND_REGEX)
+                            .named_captures.fetch("name")
                    end
             raise GitDependencyReferenceNotFound, name
           end
 
           if error.message.match?(GIT_DEPENDENCY_UNREACHABLE_REGEX)
-            url = error.message.match(GIT_DEPENDENCY_UNREACHABLE_REGEX).
-                  named_captures.fetch("url")
+            url = error.message.match(GIT_DEPENDENCY_UNREACHABLE_REGEX)
+                       .named_captures.fetch("url")
             raise GitDependenciesNotReachable, url
           end
 
@@ -156,20 +157,18 @@ module Dependabot
           return @original_reqs_resolvable if @original_reqs_resolvable
 
           SharedHelpers.in_a_temporary_directory do
-            SharedHelpers.with_git_configured(credentials: credentials) do
-              write_temporary_dependency_files(update_pyproject: false)
+            write_temporary_dependency_files(update_pyproject: false)
 
-              run_poetry_update_command
+            run_poetry_update_command
 
-              @original_reqs_resolvable = true
-            rescue SharedHelpers::HelperSubprocessFailed => e
-              raise unless e.message.include?("SolverProblemError") ||
-                           e.message.include?("not found") ||
-                           e.message.include?("version solving failed.")
+            @original_reqs_resolvable = true
+          rescue SharedHelpers::HelperSubprocessFailed => e
+            raise unless e.message.include?("SolverProblemError") ||
+                         e.message.include?("not found") ||
+                         e.message.include?("version solving failed.")
 
-              msg = clean_error_message(e.message)
-              raise DependencyFileNotResolvable, msg
-            end
+            msg = clean_error_message(e.message)
+            raise DependencyFileNotResolvable, msg
           end
         end
 
@@ -201,9 +200,9 @@ module Dependabot
         end
 
         def add_auth_env_vars
-          Python::FileUpdater::PyprojectPreparer.
-            new(pyproject_content: pyproject.content).
-            add_auth_env_vars(credentials)
+          Python::FileUpdater::PyprojectPreparer
+            .new(pyproject_content: pyproject.content)
+            .add_auth_env_vars(credentials)
         end
 
         def updated_pyproject_content(updated_requirement:)
@@ -223,21 +222,21 @@ module Dependabot
         end
 
         def sanitize_pyproject_content(pyproject_content)
-          Python::FileUpdater::PyprojectPreparer.
-            new(pyproject_content: pyproject_content).
-            sanitize
+          Python::FileUpdater::PyprojectPreparer
+            .new(pyproject_content: pyproject_content)
+            .sanitize
         end
 
         def update_python_requirement(pyproject_content)
-          Python::FileUpdater::PyprojectPreparer.
-            new(pyproject_content: pyproject_content).
-            update_python_requirement(language_version_manager.python_major_minor)
+          Python::FileUpdater::PyprojectPreparer
+            .new(pyproject_content: pyproject_content)
+            .update_python_requirement(language_version_manager.python_version)
         end
 
         def freeze_other_dependencies(pyproject_content)
-          Python::FileUpdater::PyprojectPreparer.
-            new(pyproject_content: pyproject_content, lockfile: lockfile).
-            freeze_top_level_dependencies_except([dependency])
+          Python::FileUpdater::PyprojectPreparer
+            .new(pyproject_content: pyproject_content, lockfile: lockfile)
+            .freeze_top_level_dependencies_except([dependency])
         end
 
         def set_target_dependency_req(pyproject_content, updated_requirement)
@@ -260,8 +259,6 @@ module Dependabot
 
           # If this is a sub-dependency, add the new requirement
           unless dependency.requirements.find { |r| r[:file] == pyproject.name }
-            subdep_type = subdependency_type_parser.subdep_type(dependency)
-
             poetry_object[subdep_type] ||= {}
             poetry_object[subdep_type][dependency.name] = updated_requirement
           end
@@ -281,17 +278,14 @@ module Dependabot
           end
         end
 
+        def subdep_type
+          dependency.production? ? "dependencies" : "dev-dependencies"
+        end
+
         def python_requirement_parser
           @python_requirement_parser ||=
             FileParser::PythonRequirementParser.new(
               dependency_files: dependency_files
-            )
-        end
-
-        def subdependency_type_parser
-          @subdependency_type_parser ||=
-            FileParser::PoetrySubdependencyTypeParser.new(
-              lockfile: lockfile
             )
         end
 
@@ -315,24 +309,7 @@ module Dependabot
         end
 
         def run_poetry_command(command, fingerprint: nil)
-          start = Time.now
-          command = SharedHelpers.escape_command(command)
-          stdout, process = Open3.capture2e(command)
-          time_taken = Time.now - start
-
-          # Raise an error with the output from the shell session if poetry
-          # returns a non-zero status
-          return if process.success?
-
-          raise SharedHelpers::HelperSubprocessFailed.new(
-            message: stdout,
-            error_context: {
-              command: command,
-              fingerprint: fingerprint,
-              time_taken: time_taken,
-              process_exit_value: process.to_s
-            }
-          )
+          Helpers.run_poetry_command(command, fingerprint: fingerprint)
         end
 
         def normalise(name)

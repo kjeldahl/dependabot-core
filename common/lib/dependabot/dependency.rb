@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "dependabot/version"
@@ -50,8 +51,8 @@ module Dependabot
         previous_requirements&.map { |req| symbolize_keys(req) }
       @package_manager = package_manager
       unless top_level? || subdependency_metadata == []
-        @subdependency_metadata = subdependency_metadata&.
-                                  map { |h| symbolize_keys(h) }
+        @subdependency_metadata = subdependency_metadata
+                                  &.map { |h| symbolize_keys(h) }
       end
       @removed = removed
       @metadata = symbolize_keys(metadata || {})
@@ -93,9 +94,9 @@ module Dependabot
 
       groups = requirements.flat_map { |r| r.fetch(:groups).map(&:to_s) }
 
-      self.class.
-        production_check_for_package_manager(package_manager).
-        call(groups)
+      self.class
+          .production_check_for_package_manager(package_manager)
+          .call(groups)
     end
 
     def subdependency_production_check
@@ -148,23 +149,23 @@ module Dependabot
     end
 
     def docker_digest_from_reqs(requirements)
-      requirements.
-        filter_map { |r| r.dig(:source, "digest") || r.dig(:source, :digest) }.
-        first
+      requirements
+        .filter_map { |r| r.dig(:source, "digest") || r.dig(:source, :digest) }
+        .first
     end
 
     def previous_ref
       previous_refs = previous_requirements.filter_map do |r|
         r.dig(:source, "ref") || r.dig(:source, :ref)
       end.uniq
-      return previous_refs.first if previous_refs.count == 1
+      previous_refs.first if previous_refs.count == 1
     end
 
     def new_ref
       new_refs = requirements.filter_map do |r|
         r.dig(:source, "ref") || r.dig(:source, :ref)
       end.uniq
-      return new_refs.first if new_refs.count == 1
+      new_refs.first if new_refs.count == 1
     end
 
     def ref_changed?
@@ -259,8 +260,8 @@ module Dependabot
 
       required_keys = %i(requirement file groups source)
       optional_keys = %i(metadata)
-      unless requirement_fields.flatten.
-             all? { |r| required_keys.sort == (r.keys - optional_keys).sort }
+      unless requirement_fields.flatten
+                               .all? { |r| required_keys.sort == (r.keys - optional_keys).sort }
         raise ArgumentError, "each requirement must have the following " \
                              "required keys: #{required_keys.join(', ')}." \
                              "Optionally, it may have the following keys: " \

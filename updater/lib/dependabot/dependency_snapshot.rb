@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "base64"
@@ -69,18 +70,13 @@ module Dependabot
       @dependency_group_engine.dependency_groups
     end
 
-    def calculate_ungrouped_dependencies(all_grouped_changes)
-      @ungrouped_dependencies = allowed_dependencies.select do |dep|
-        all_grouped_changes.none? { |change| change.name == dep.name }
-      end
-    end
-
     def ungrouped_dependencies
       # If no groups are defined, all dependencies are ungrouped by default.
       return allowed_dependencies unless groups.any?
-      return @ungrouped_dependencies if defined?(@ungrouped_dependencies)
 
-      @dependency_group_engine.ungrouped_dependencies
+      # Otherwise return dependencies that haven't been handled during the group update portion.
+      all_handled_dependencies = Set.new(groups.map { |g| g.handled_dependencies.to_a }.flatten)
+      allowed_dependencies.reject { |dep| all_handled_dependencies.include?(dep.name) }
     end
 
     private

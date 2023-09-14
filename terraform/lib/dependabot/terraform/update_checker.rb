@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "dependabot/update_checkers"
@@ -16,7 +17,8 @@ module Dependabot
       def latest_version
         return latest_version_for_git_dependency if git_dependency?
         return latest_version_for_registry_dependency if registry_dependency?
-        return latest_version_for_provider_dependency if provider_dependency?
+
+        latest_version_for_provider_dependency if provider_dependency?
         # Other sources (mercurial, path dependencies) just return `nil`
       end
 
@@ -121,13 +123,13 @@ module Dependabot
         # we want to update that tag. Because we don't have a lockfile, the
         # latest version is the tag itself.
         if git_commit_checker.pinned_ref_looks_like_version?
-          latest_tag = git_commit_checker.local_tag_for_latest_version&.
-                       fetch(:tag)
+          latest_tag = git_commit_checker.local_tag_for_latest_version
+                       &.fetch(:tag)
           version_rgx = GitCommitChecker::VERSION_REGEX
           return unless latest_tag.match(version_rgx)
 
-          version = latest_tag.match(version_rgx).
-                    named_captures.fetch("version")
+          version = latest_tag.match(version_rgx)
+                              .named_captures.fetch("version")
           return version_class.new(version)
         end
 
@@ -141,8 +143,8 @@ module Dependabot
         return unless git_commit_checker.pinned?
         return unless git_commit_checker.pinned_ref_looks_like_version?
 
-        latest_tag = git_commit_checker.local_tag_for_latest_version&.
-                     fetch(:tag)
+        latest_tag = git_commit_checker.local_tag_for_latest_version
+                     &.fetch(:tag)
 
         version_rgx = GitCommitChecker::VERSION_REGEX
         return unless latest_tag.match(version_rgx)
@@ -189,5 +191,5 @@ module Dependabot
   end
 end
 
-Dependabot::UpdateCheckers.
-  register("terraform", Dependabot::Terraform::UpdateChecker)
+Dependabot::UpdateCheckers
+  .register("terraform", Dependabot::Terraform::UpdateChecker)

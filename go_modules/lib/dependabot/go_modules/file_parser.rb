@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "open3"
@@ -139,5 +140,5 @@ module Dependabot
   end
 end
 
-Dependabot::FileParsers.
-  register("go_modules", Dependabot::GoModules::FileParser)
+Dependabot::FileParsers
+  .register("go_modules", Dependabot::GoModules::FileParser)

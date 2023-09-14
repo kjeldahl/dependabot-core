@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "json"
@@ -81,22 +82,22 @@ RSpec.describe Dependabot::PullRequestUpdater::Gitlab do
   let(:target_project_id) { nil }
 
   before do
-    stub_request(:get, merge_request_url).
-      to_return(status: 200,
-                body: fixture("gitlab", "merge_request.json"),
-                headers: json_header)
-    stub_request(:get, branch_url).
-      to_return(status: 200,
-                body: fixture("gitlab", "branch.json"),
-                headers: json_header)
-    stub_request(:post, commit_url).
-      to_return(status: 200,
-                body: fixture("gitlab", "create_commit.json"),
-                headers: json_header)
-    stub_request(:get, commit_url + "/#{old_commit}").
-      to_return(status: 200,
-                body: fixture("gitlab", "create_commit.json"),
-                headers: json_header)
+    stub_request(:get, merge_request_url)
+      .to_return(status: 200,
+                 body: fixture("gitlab", "merge_request.json"),
+                 headers: json_header)
+    stub_request(:get, branch_url)
+      .to_return(status: 200,
+                 body: fixture("gitlab", "branch.json"),
+                 headers: json_header)
+    stub_request(:post, commit_url)
+      .to_return(status: 200,
+                 body: fixture("gitlab", "create_commit.json"),
+                 headers: json_header)
+    stub_request(:get, commit_url + "/#{old_commit}")
+      .to_return(status: 200,
+                 body: fixture("gitlab", "create_commit.json"),
+                 headers: json_header)
   end
 
   describe "#update" do
@@ -109,8 +110,8 @@ RSpec.describe Dependabot::PullRequestUpdater::Gitlab do
       it "fetches mr from upstream project" do
         updater.update
 
-        expect(WebMock).
-          to have_requested(:get, merge_request_url)
+        expect(WebMock)
+          .to have_requested(:get, merge_request_url)
       end
     end
 
@@ -119,8 +120,8 @@ RSpec.describe Dependabot::PullRequestUpdater::Gitlab do
 
       it "doesn't push a commit to Gitlab" do
         updater.update
-        expect(WebMock).
-          to_not have_requested(:post, commit_url)
+        expect(WebMock)
+          .to_not have_requested(:post, commit_url)
       end
 
       it "returns nil" do
@@ -133,8 +134,8 @@ RSpec.describe Dependabot::PullRequestUpdater::Gitlab do
 
       it "doesn't push a commit to Gitlab" do
         updater.update
-        expect(WebMock).
-          to_not have_requested(:post, commit_url)
+        expect(WebMock)
+          .to_not have_requested(:post, commit_url)
       end
 
       it "returns nil" do
@@ -145,9 +146,9 @@ RSpec.describe Dependabot::PullRequestUpdater::Gitlab do
     it "pushes a commit to Gitlab" do
       updater.update
 
-      expect(WebMock).
-        to have_requested(:post, commit_url).
-        with(
+      expect(WebMock)
+        .to have_requested(:post, commit_url)
+        .with(
           body: {
             branch: branch_name,
             commit_message: JSON.parse(
@@ -158,25 +159,25 @@ RSpec.describe Dependabot::PullRequestUpdater::Gitlab do
                 action: "update",
                 file_path: gemfile.path,
                 content: gemfile.content,
-                encoding: "utf-8"
+                encoding: "text"
               },
               {
                 action: "update",
                 file_path: gemfile_lock.path,
                 content: gemfile_lock.content,
-                encoding: "utf-8"
+                encoding: "text"
               },
               {
                 action: "create",
                 file_path: created_file.path,
                 content: created_file.content,
-                encoding: "utf-8"
+                encoding: "text"
               },
               {
                 action: "delete",
                 file_path: deleted_file.path,
                 content: "",
-                encoding: "utf-8"
+                encoding: "text"
               }
             ],
             force: true,
@@ -207,9 +208,9 @@ RSpec.describe Dependabot::PullRequestUpdater::Gitlab do
       it "pushes a commit to GitLab" do
         updater.update
 
-        expect(WebMock).
-          to have_requested(:post, commit_url).
-          with(
+        expect(WebMock)
+          .to have_requested(:post, commit_url)
+          .with(
             body: {
               branch: branch_name,
               commit_message: JSON.parse(
@@ -247,9 +248,9 @@ RSpec.describe Dependabot::PullRequestUpdater::Gitlab do
       it "pushes a commit to Gitlab" do
         updater.update
 
-        expect(WebMock).
-          to have_requested(:post, commit_url).
-          with(
+        expect(WebMock)
+          .to have_requested(:post, commit_url)
+          .with(
             body: {
               branch: branch_name,
               commit_message: JSON.parse(
@@ -260,7 +261,7 @@ RSpec.describe Dependabot::PullRequestUpdater::Gitlab do
                   action: "update",
                   file_path: files[0].symlink_target,
                   content: files[0].content,
-                  encoding: "utf-8"
+                  encoding: "text"
                 }
               ],
               force: true,

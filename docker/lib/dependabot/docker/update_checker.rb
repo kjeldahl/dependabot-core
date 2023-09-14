@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "docker_registry2"
@@ -76,7 +77,7 @@ module Dependabot
 
       def version_tag_up_to_date?
         version = dependency.version
-        return unless version
+        return false unless version
 
         return true unless version_tag.comparable?
 
@@ -171,19 +172,14 @@ module Dependabot
         end
       end
 
-      def version_of_latest_tag
+      def latest_tag
         return unless latest_digest
 
-        candidate_tag =
-          tags_from_registry.
-          select(&:canonical?).
-          sort_by { |t| comparable_version_from(t) }.
-          reverse.
-          find { |t| digest_of(t.name) == latest_digest }
-
-        return unless candidate_tag
-
-        comparable_version_from(candidate_tag)
+        tags_from_registry
+          .select(&:canonical?)
+          .sort_by { |t| comparable_version_from(t) }
+          .reverse
+          .find { |t| digest_of(t.name) == latest_digest }
       end
 
       def updated_digest
@@ -259,10 +255,16 @@ module Dependabot
         return true if tag.looks_like_prerelease?
 
         # Compare the numeric version against the version of the `latest` tag.
-        return false unless latest_digest
-        return false unless version_of_latest_tag
+        return false unless latest_tag
 
-        comparable_version_from(tag) > version_of_latest_tag
+        if comparable_version_from(tag) > comparable_version_from(latest_tag)
+          Dependabot.logger.info "Tag with non-prerelease version name #{tag.name} detected as prerelease, " \
+                                 "because it sorts higher than #{latest_tag.name}."
+
+          true
+        else
+          false
+        end
       end
 
       def comparable_version_from(tag)
@@ -323,8 +325,8 @@ module Dependabot
 
       def filter_ignored(candidate_tags)
         filtered =
-          candidate_tags.
-          reject do |tag|
+          candidate_tags
+          .reject do |tag|
             version = comparable_version_from(tag)
             ignore_requirements.any? { |r| r.satisfied_by?(version) }
           end

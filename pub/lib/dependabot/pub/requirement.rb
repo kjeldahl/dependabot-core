@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 # For details on pub version constraints see:
@@ -52,7 +53,7 @@ module Dependabot
 
       def to_s
         if @raw_constraint.nil?
-          as_list.join ", "
+          as_list.join " "
         else
           @raw_constraint
         end
@@ -118,5 +119,5 @@ module Dependabot
   end
 end
 
-Dependabot::Utils.
-  register_requirement_class("pub", Dependabot::Pub::Requirement)
+Dependabot::Utils
+  .register_requirement_class("pub", Dependabot::Pub::Requirement)

@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "dependabot/logger"
@@ -8,10 +9,10 @@ module Dependabot
     class LanguageVersionManager
       # This list must match the versions specified at the top of `python/Dockerfile`
       PRE_INSTALLED_PYTHON_VERSIONS = %w(
-        3.11.4
-        3.10.12
-        3.9.17
-        3.8.17
+        3.11.5
+        3.10.13
+        3.9.18
+        3.8.18
       ).freeze
 
       def initialize(python_requirement_parser:)
@@ -23,7 +24,7 @@ module Dependabot
         return if SharedHelpers.run_shell_command("pyenv versions").include?(" #{python_major_minor}.")
 
         SharedHelpers.run_shell_command(
-          "tar xzf /usr/local/.pyenv/#{python_major_minor}.tar.gz -C /usr/local/.pyenv/"
+          "tar -axf /usr/local/.pyenv/versions/#{python_version}.tar.zst -C /usr/local/.pyenv/versions"
         )
       end
 
@@ -43,10 +44,8 @@ module Dependabot
           else
             user_specified_python_version
           end
-        elsif python_version_matching_imputed_requirements
-          python_version_matching_imputed_requirements
         else
-          PythonVersions::PRE_INSTALLED_PYTHON_VERSIONS.first
+          python_version_matching_imputed_requirements || PRE_INSTALLED_PYTHON_VERSIONS.first
         end
       end
 

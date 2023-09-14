@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 # See https://docs.npmjs.com/files/package.json for package.json format docs.
@@ -178,10 +179,10 @@ module Dependabot
         elsif lockfile_details
           lockfile_version_for(lockfile_details)
         else
-          req = requirement_class.new(requirement)
-          return unless req.exact?
+          exact_version = exact_version_for(requirement)
+          return unless exact_version
 
-          semver_version_for(req.requirements.first.last.to_s)
+          semver_version_for(exact_version)
         end
       end
 
@@ -204,14 +205,14 @@ module Dependabot
           Dependabot::GitMetadataFetcher.new(
             url: git_source_for(requirement).fetch(:url),
             credentials: credentials
-          ).tags.
-          select { |t| [t.commit_sha, t.tag_sha].include?(git_revision) }
+          ).tags
+                                        .select { |t| [t.commit_sha, t.tag_sha].include?(git_revision) }
 
         tags.each do |t|
           next unless t.name.match?(Dependabot::GitCommitChecker::VERSION_REGEX)
 
-          version = t.name.match(Dependabot::GitCommitChecker::VERSION_REGEX).
-                    named_captures.fetch("version")
+          version = t.name.match(Dependabot::GitCommitChecker::VERSION_REGEX)
+                     .named_captures.fetch("version")
           next unless version_class.correct?(version)
 
           return version
@@ -228,6 +229,15 @@ module Dependabot
 
       def semver_version_for(version)
         version_class.semver_for(version)
+      end
+
+      def exact_version_for(requirement)
+        req = requirement_class.new(requirement)
+        return unless req.exact?
+
+        req.requirements.first.last.to_s
+      rescue Gem::Requirement::BadRequirementError
+        # If it doesn't parse, it's definitely not exact
       end
 
       def source_for(name, requirement, lockfile_details)
@@ -258,10 +268,10 @@ module Dependabot
         prefix = details.fetch("git_prefix")
 
         host = if prefix.include?("git@") || prefix.include?("://")
-                 prefix.split("git@").last.
-                   sub(%r{.*?://}, "").
-                   sub(%r{[:/]$}, "").
-                   split("#").first
+                 prefix.split("git@").last
+                       .sub(%r{.*?://}, "")
+                       .sub(%r{[:/]$}, "")
+                       .split("#").first
                elsif prefix.include?("bitbucket") then "bitbucket.org"
                elsif prefix.include?("gitlab") then "gitlab.com"
                else
@@ -283,8 +293,8 @@ module Dependabot
             resolved_url.split("/~/").first
           elsif resolved_url.include?("/#{name}/-/#{name}")
             # MyGet / Bintray format
-            resolved_url.split("/#{name}/-/#{name}").first.
-              gsub("dl.bintray.com//", "api.bintray.com/npm/").
+            resolved_url.split("/#{name}/-/#{name}").first
+                        .gsub("dl.bintray.com//", "api.bintray.com/npm/").
               # GitLab format
               gsub(%r{\/projects\/\d+}, "")
           elsif resolved_url.include?("/#{name}/-/#{name.split('/').last}")
@@ -302,10 +312,10 @@ module Dependabot
         resolved_url_host = URI(resolved_url).host
 
         credential_matching_url =
-          credentials.
-          select { |cred| cred["type"] == "npm_registry" }.
-          sort_by { |cred| cred["registry"].length }.
-          find do |details|
+          credentials
+          .select { |cred| cred["type"] == "npm_registry" }
+          .sort_by { |cred| cred["registry"].length }
+          .find do |details|
             next true if resolved_url_host == details["registry"]
 
             uri = if details["registry"]&.include?("://")
@@ -328,11 +338,11 @@ module Dependabot
         @package_files ||=
           begin
             sub_packages =
-              dependency_files.
-              select { |f| f.name.end_with?("package.json") }.
-              reject { |f| f.name == "package.json" }.
-              reject { |f| f.name.include?("node_modules/") }.
-              reject(&:support_file?)
+              dependency_files
+              .select { |f| f.name.end_with?("package.json") }
+              .reject { |f| f.name == "package.json" }
+              .reject { |f| f.name.include?("node_modules/") }
+              .reject(&:support_file?)
 
             [
               dependency_files.find { |f| f.name == "package.json" },
@@ -352,5 +362,5 @@ module Dependabot
   end
 end
 
-Dependabot::FileParsers.
-  register("npm_and_yarn", Dependabot::NpmAndYarn::FileParser)
+Dependabot::FileParsers
+  .register("npm_and_yarn", Dependabot::NpmAndYarn::FileParser)
